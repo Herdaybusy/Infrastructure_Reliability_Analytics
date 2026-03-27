@@ -1,0 +1,23 @@
+# ── Core data science ─────────────────────────────────────────
+pandas>=2.1.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+scipy>=1.12.0
+
+# ── Visualisation ─────────────────────────────────────────────
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# ── Notebook support ──────────────────────────────────────────
+jupyter>=1.0.0
+notebook>=7.0.0
+ipykernel>=6.28.0
+
+# ── File format support ───────────────────────────────────────
+openpyxl>=3.1.0       # required for pd.read_excel()
+xlrd>=2.0.1           # legacy .xls support
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dotenv>=1.0.0  # optional: for managing env variables
+
+pytest
