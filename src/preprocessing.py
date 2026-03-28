@@ -92,6 +92,7 @@ delays = delays.rename(columns={
 start_month = delays['time_period'].str.split(' to ').str[0]
 year = delays['time_period'].str[-4:]
 delays['date'] = pd.to_datetime(start_month + ' ' + year, format='%b %Y', errors='coerce')
+delay = delays.dropna(subset=['date'])
 delays['quarter'] = delays['date'].dt.to_period('Q').astype(str)
 delays['total_cancellations'] = delays['part_cancellations'] + delays['full_cancellations']
 
