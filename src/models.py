@@ -13,7 +13,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-# logger lives in the same src/ folder — need to add it to path if running from root
+# logger 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from logger import get_logger
 
@@ -28,7 +28,7 @@ sns.set_theme(style='whitegrid')
 plt.rcParams['figure.dpi'] = 150
 
 
-# --- load and merge ---
+# load and merge
 
 delay_df = pd.read_csv(os.path.join(proc_dir, 'cleaned_delay_data.csv'))
 env_df   = pd.read_csv(os.path.join(proc_dir, 'cleaned_environmental_data.csv'))
@@ -38,7 +38,7 @@ env_df['datetime'] = pd.to_datetime(env_df['datetime'], errors='coerce')
 env_df['quarter']  = env_df['datetime'].dt.to_period('Q').astype(str)
 
 # env data is monthly, delay data is quarterly
-# aggregate to quarterly means first so the merge makes sense
+# aggregating to quarterly means 
 env_q = env_df.groupby('quarter').agg({
     'max_temp'   : 'mean',
     'min_temp'   : 'mean',
@@ -55,7 +55,7 @@ merged = pd.merge(delay_df, env_q, on='quarter', how='inner')
 logger.info(f'merged shape: {merged.shape}')
 
 
-# --- features and target ---
+# features and target
 
 features = ['temp', 'max_temp', 'min_temp', 'precip', 'humidity',
             'wind_gust', 'wind_speed', 'visibility', 'cloud_cover']
@@ -68,7 +68,7 @@ logger.info(f'missing values:\n{X.isnull().sum()}')
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# scaling matters here especially for KNN and the regularised models
+# scaling for KNN and the regularised models
 scaler  = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test  = scaler.transform(X_test)
@@ -76,7 +76,7 @@ X_test  = scaler.transform(X_test)
 logger.info(f'train: {X_train.shape}  test: {X_test.shape}')
 
 
-# --- train all six models ---
+# training all six models
 # lasso needs max_iter bumped up — default 1000 wasn't enough and threw a ConvergenceWarning
 
 models = {
@@ -103,7 +103,7 @@ for name, model in models.items():
     logger.info(f'{name} done')
 
 
-# --- metrics summary ---
+# metrics summary
 
 metrics_df = pd.DataFrame([
     {'Model': name, 'MAE': round(v['MAE'], 2), 'MSE': round(v['MSE'], 2),
@@ -111,13 +111,12 @@ metrics_df = pd.DataFrame([
     for name, v in results.items()
 ]).sort_values('RMSE').reset_index(drop=True)
 
-# f-string keeps it as one argument — logger.info(a, b) treats b as a format param, not a message
 logger.info(f'\n{metrics_df.to_string(index=False)}')
 
 metrics_df.to_csv(os.path.join(outputs_dir, 'model_evaluation_metrics.csv'), index=False)
 
 
-# --- RMSE bar chart ---
+# RMSE bar chart
 
 plt.figure(figsize=(10, 5))
 sns.barplot(data=metrics_df, x='Model', y='RMSE',
@@ -130,7 +129,7 @@ plt.savefig(os.path.join(outputs_dir, 'model_rmse_comparison.png'), bbox_inches=
 plt.close()
 
 
-# --- R² comparison ---
+# R² comparison 
 # tomato for anything negative so it's obvious at a glance which models struggled
 
 plt.figure(figsize=(10, 5))
@@ -145,7 +144,7 @@ plt.savefig(os.path.join(outputs_dir, 'model_r2_comparison.png'), bbox_inches='t
 plt.close()
 
 
-# --- actual vs predicted for all six ---
+# actual vs predicted for all six 
 
 fig, axes = plt.subplots(2, 3, figsize=(16, 10))
 axes = axes.flatten()
@@ -165,7 +164,7 @@ plt.savefig(os.path.join(outputs_dir, 'actual_vs_predicted.png'), bbox_inches='t
 plt.close()
 
 
-# --- random forest feature importance ---
+# random forest feature importance
 # useful for understanding which weather variables are actually doing the work
 
 rf = results['Random Forest']['model']

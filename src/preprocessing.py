@@ -13,7 +13,7 @@ proc_dir = os.path.join(BASE_DIR, 'data', 'processed')
 os.makedirs(proc_dir, exist_ok=True)
 
 
-# --- environmental data ---
+# environmental data 
 
 env = pd.read_csv(os.path.join(raw_dir, 'environmental_data.csv'))
 env = env.drop_duplicates()
@@ -57,7 +57,7 @@ monthly.to_csv(env_out, index=False)
 logger.info(f'environmental data saved — {monthly.shape[0]} monthly records')
 
 
-# --- train delay data ---
+# train delay data
 
 delays = pd.read_excel(os.path.join(raw_dir, 'Train_delay.xlsx'))
 

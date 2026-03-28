@@ -33,7 +33,7 @@ merged = pd.merge(env_df, delay_df, on='quarter', how='inner')
 logger.info(f'merged shape: {merged.shape}')
 
 
-# --- correlation heatmap ---
+# correlation heatmap
 # wanted to see which weather variables actually relate to cancellations
 
 numeric_cols = merged.select_dtypes(include='number')
@@ -49,7 +49,7 @@ plt.close()
 logger.info('saved: correlation_heatmap.png')
 
 
-# --- time series of the three main weather variables ---
+# time series of the three main weather variables
 
 fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
 
@@ -74,7 +74,7 @@ plt.close()
 logger.info('saved: environmental_timeseries.png')
 
 
-# --- cancellations by quarter bar chart ---
+# cancellations by quarter bar chart
 # sorting by date first so the x-axis actually reads chronologically
 
 plt.figure(figsize=(14, 5))
@@ -91,7 +91,7 @@ plt.close()
 logger.info('saved: cancellations_by_quarter.png')
 
 
-# --- wind gust vs cancellation score scatter ---
+# wind gust vs cancellation score scatter
 # colouring by month to see if seasonal clustering is visible
 
 plt.figure(figsize=(8, 5))
@@ -106,7 +106,7 @@ plt.close()
 logger.info('saved: wind_vs_cancellations.png')
 
 
-# --- seasonal boxplot ---
+# seasonal boxplot
 
 plt.figure(figsize=(12, 5))
 sns.boxplot(data=merged, x='month', y='cancellation_score',
