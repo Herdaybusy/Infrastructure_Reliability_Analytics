@@ -4,13 +4,12 @@ import numpy as np
 import os
 import sys
 
-# make sure we can import from src/
+# to be sure we can import from src/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
-# ----------------------------------------------------------------
 # fixtures — just small fake versions of the real data
-# ----------------------------------------------------------------
+
 
 @pytest.fixture
 def sample_env():
@@ -57,9 +56,9 @@ def sample_delay():
     })
 
 
-# ----------------------------------------------------------------
+
 # preprocessing tests
-# ----------------------------------------------------------------
+
 
 def test_env_has_expected_columns(sample_env):
     expected = ['datetime', 'max_temp', 'min_temp', 'temp', 'precip',
@@ -119,9 +118,9 @@ def test_precip_non_negative(sample_env):
     assert (sample_env['precip'] >= 0).all()
 
 
-# ----------------------------------------------------------------
+
 # merge tests
-# ----------------------------------------------------------------
+
 
 def test_merge_on_quarter_produces_rows(sample_env, sample_delay):
     sample_env['quarter'] = sample_env['datetime'].dt.to_period('Q').astype(str)
@@ -166,9 +165,7 @@ def test_merged_has_both_env_and_delay_columns(sample_env, sample_delay):
     assert 'temp' in merged.columns
 
 
-# ----------------------------------------------------------------
 # model tests
-# ----------------------------------------------------------------
 
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.tree import DecisionTreeRegressor
@@ -202,8 +199,7 @@ def model_data(sample_env, sample_delay):
 
 def test_linear_regression_fits_without_error(model_data):
     X, y = model_data
-    # with only 3-4 rows this won't be a useful model
-    # but it should at least run without crashing
+    
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     model = LinearRegression()
@@ -259,10 +255,7 @@ def test_feature_count_matches_expected(model_data):
     assert X.shape[1] == 9, f"expected 9 features, got {X.shape[1]}"
 
 
-# ----------------------------------------------------------------
-# output file tests — run these after the scripts have been executed
-# ----------------------------------------------------------------
-
+# output file tests - just checking that the expected files are created and have the right format
 OUTPUTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'outputs')
 
 expected_outputs = [

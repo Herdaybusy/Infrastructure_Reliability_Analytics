@@ -1,20 +1,20 @@
 # infrastructure-reliability-analytics
 
-Predicting the impact of environmental conditions on Scotland's railway reliability using machine learning. Built as part of an MSc Data Engineering dissertation at Glasgow Caledonian University, rebuilt in 2025 with improved pipelines and a broader model evaluation framework.
+Predicting the impact of environmental conditions on Scotland's railway reliability using machine learning. Built as part of an MSc Data Engineering dissertation at Glasgow Caledonian University, rebuilt in 2026 with corrected data pipelines, a broader model evaluation framework, and a proper test suite.
 
-The core question this project tries to answer: **can weather data alone predict when train services are likely to be disrupted?** The short answer is partially — the analysis confirms clear correlations between adverse weather and cancellations, but environmental data on its own isn't enough for accurate prediction. The report documents both what works and what's missing.
+The core question this project tries to answer: **can weather data alone predict when train services are likely to be disrupted?** The results are more nuanced than a simple yes or no — KNN and the regularised regression models show meaningful predictive signal, while tree-based ensemble methods overfit badly on a dataset of this size. The analysis documents both what works and what's missing.
 
-📄 [Full Analysis Report](docs/infrastructure_reliability_report.docx)
+📄 [Full Analysis Report](docs/Infrastructure_Reliability_Report.docx)
 
 ---
 
-## What's in here
+## Structure
 
 ```
 infrastructure-reliability-analytics/
 │
 ├── data/
-│   ├── raw/                           
+│   ├── raw/                              # original source files (not committed — see below)
 │   └── processed/
 │       ├── cleaned_delay_data.csv
 │       └── cleaned_environmental_data.csv
@@ -25,6 +25,7 @@ infrastructure-reliability-analytics/
 │   └── 03_modelling.ipynb
 │
 ├── src/
+│   ├── logger.py
 │   ├── preprocessing.py
 │   ├── visualization.py
 │   └── models.py
@@ -45,8 +46,12 @@ infrastructure-reliability-analytics/
 │   └── model_evaluation_metrics.csv
 │
 ├── docs/
-│   └── infrastructure_reliability_report_v2.docx
+│   └── Infrastructure_Reliability_Report.docx
 │
+├── .github/workflows/
+│   └── ci.yml
+├── .gitignore
+├── Dockerfile
 ├── environment.yml
 ├── requirements.txt
 └── README.md
@@ -63,6 +68,8 @@ infrastructure-reliability-analytics/
 
 The ORR dataset includes quarterly cancellation scores broken down by fault category — infrastructure, operator, and external. The environmental dataset covers temperature (max/min/avg), precipitation, humidity, wind gust, wind speed, visibility, and cloud cover across Scotland.
 
+After merging on a shared quarter key, the final dataset contains **45 quarterly observations** spanning the study period.
+
 > Raw data files are not committed to this repo due to licensing. The cleaned processed files are included in `data/processed/`.
 
 ---
@@ -72,7 +79,7 @@ The ORR dataset includes quarterly cancellation scores broken down by fault cate
 **With pip:**
 
 ```bash
-git clone https://github.com/<your-username>/infrastructure-reliability-analytics.git
+git clone https://github.com/herdaybusy/infrastructure-reliability-analytics.git
 cd infrastructure-reliability-analytics
 
 python -m venv venv
@@ -92,8 +99,6 @@ conda activate rail-analytics
 
 ## Running it
 
-There are two ways — notebooks if you want to explore interactively, scripts if you just want the outputs.
-
 **Notebooks (run in order):**
 
 ```bash
@@ -107,9 +112,9 @@ jupyter notebook
 **Scripts:**
 
 ```bash
-python src/preprocessing.py    # cleans raw data, saves to data/processed/
-python src/visualization.py    # generates all EDA charts, saves to outputs/
-python src/models.py           # trains models, saves metrics + charts to outputs/
+python src/preprocessing.py    # cleans raw data → data/processed/
+python src/visualization.py    # generates EDA charts → outputs/
+python src/models.py           # trains models, saves metrics + charts → outputs/
 ```
 
 **Tests:**
@@ -124,22 +129,21 @@ The test suite covers preprocessing logic, the merge, model outputs, and checks 
 
 ## How it works
 
-The pipeline looks like this:
-
 ```
-Raw data (ORR quarterly + Met Office monthly)
+Raw data (ORR quarterly + Met Office/Visual Crossing monthly)
     ↓
 Preprocessing — cleaning, renaming, type conversion, monthly resampling
     ↓
-Quarterly aggregation — monthly env data averaged to quarterly
+Quarterly aggregation — monthly env data averaged to quarterly means
     ↓
-Merge on quarter key (e.g. 2018Q3)
+Merge on quarter key → 45 observations
     ↓
 Feature selection — 9 environmental variables
 StandardScaler + 80/20 train-test split (random_state=42)
+36 training rows / 9 test rows
     ↓
 Train 6 models:
-    Linear Regression · Lasso · Ridge
+    Linear Regression · Lasso (max_iter=10000) · Ridge
     Decision Tree · Random Forest · KNN
     ↓
 Evaluate: MAE · MSE · RMSE · R²
@@ -151,33 +155,35 @@ The reason for aggregating environmental data to quarterly before merging is tha
 
 ## Results
 
-| Model | RMSE ↓ | R² |
-|---|---|---|
-| Linear Regression | lowest | negative |
-| Ridge Regression | 2nd | negative |
-| Lasso Regression | 3rd | negative |
-| Random Forest | 4th | negative |
-| Decision Tree | 5th | negative |
-| K-Nearest Neighbors | highest | negative |
+| Rank | Model | MAE | MSE | RMSE | R² |
+|---|---|---|---|---|---|
+| 1 | **K-Nearest Neighbors** | 433.98 | 334,007.73 | **577.93** | **0.1583** |
+| 2 | Ridge Regression | 518.43 | 368,144.49 | 606.75 | 0.0723 |
+| 3 | Lasso Regression | 514.76 | 369,403.56 | 607.79 | 0.0691 |
+| 4 | Linear Regression | 519.25 | 371,883.06 | 609.82 | 0.0629 |
+| 5 | Random Forest | 670.14 | 916,693.59 | 957.44 | -1.3101 |
+| 6 | Decision Tree | 885.30 | 1,371,096.76 | 1170.94 | -2.4552 |
 
-All models returned negative R² values — meaning none of them outperform a naive baseline that just predicts the mean cancellation score every quarter. This is the most important finding in the project, and it's documented honestly in the report.
+KNN achieved the best performance with RMSE of 577.93 and a positive R² of 0.1583 — explaining roughly 16% of variance in quarterly cancellation scores from weather data alone. Four of the six models returned positive R² values. Random Forest and Decision Tree both returned negative R², consistent with known overfitting behaviour on datasets of this size.
 
-It doesn't mean the analysis is wrong. It means environmental data on its own isn't sufficient. The missing inputs are maintenance records, infrastructure fault logs, and rolling stock condition data — none of which were publicly available. The report explains this in detail and sets out what additional data would be needed for a genuinely useful predictive model.
+**Top environmental predictors (Random Forest feature importance):**
+- Cloud cover — strongest predictor (0.269)
+- Humidity — second (0.215)
+- Precipitation — third (0.154)
 
-**Top environmental predictors (from Random Forest feature importance):**
-- Wind gust
-- Minimum temperature
-- Precipitation
+At quarterly granularity, sustained cloud cover and high humidity are better proxies for prolonged poor weather than peak wind readings, which average out across a three-month period.
 
 ---
 
 ## Key findings
 
-- Q1 (Jan–Mar) and Q4 (Oct–Dec) consistently show the highest cancellation scores every year in the dataset — winter disruption is structural, not random
-- Storm events produce sharp, short-lived spikes that are clearly visible as outliers in the time series — Storms Doris, Isha, and Jocelyn are all identifiable in the data
-- Wind gust is the single strongest environmental predictor of disruption, followed by minimum temperature
-- Linear Regression outperforms all ensemble methods — on a dataset this small (<30 quarterly rows), complex models overfit rather than generalise
-- Environmental data explains some of the variance in cancellation scores but not enough to be operationally useful on its own
+- **45 quarterly observations** after merging — larger than the original 2024 dataset
+- **KNN is the best model**, outperforming all regression and ensemble methods
+- **4 out of 6 models return positive R²** — meaningful predictive signal exists in environmental data
+- **Tree-based models overfit** on a dataset this small — Decision Tree is the worst performer by a wide margin
+- **Cloud cover and humidity are the top predictors**, not wind gust as initially expected
+- Winter quarters (Q1, Q4) consistently show the highest cancellation scores across all years in the study period
+- Storm events (Doris, Isha, Jocelyn) are visible as clear outlier spikes in the time series
 
 ---
 
@@ -203,53 +209,56 @@ It doesn't mean the analysis is wrong. It means environmental data on its own is
 
 ## What changed from the 2024 version
 
-The original 2024 model was built as part of the MSc dissertation. This 2025 rebuild fixed several issues:
-
-| Issue | 2024 | 2025 |
+| Issue | 2024 | 2026 |
 |---|---|---|
 | File paths | Hardcoded Windows absolute paths — broke on any other machine | `os.path.join` with relative paths throughout |
-| Data merging | Monthly env data merged directly without aggregating first | Correctly aggregated to quarterly before merge |
-| Output files | No `plt.savefig` calls — charts only rendered in notebook | All charts saved to `outputs/` automatically |
+| Data merging | Monthly env data merged without aggregating first | Correctly aggregated to quarterly before merge |
+| Dataset size | ~30 rows | 45 rows after correct merge |
+| Output files | No `plt.savefig` — charts only rendered in notebook | All charts saved to `outputs/` automatically |
 | Models tested | 4 | 6 (added Lasso and Ridge) |
 | Random seeds | Not set | `random_state=42` everywhere |
-| Code structure | Notebooks only | Notebooks + standalone `src/` scripts + test suite |
+| Warnings | seaborn FutureWarnings, Lasso ConvergenceWarning | All fixed |
+| Code structure | Notebooks only | Notebooks + `src/` scripts + logger + test suite |
+| Best model | Linear Regression (negative R²) | KNN (R² = 0.1583) |
 
 ---
 
-## To extend this
+## Logging
 
-A few directions that would meaningfully improve the model:
+All scripts use Python's standard `logging` module via `src/logger.py`. Key steps are logged at `INFO` level with timestamps:
 
-- **Get better data** — the single biggest improvement would be access to Network Rail's infrastructure fault logs. The ORR publishes some of this but not at the granularity needed. A formal data request through the rail regulator would be the way to pursue it.
-- **Increase temporal resolution** — moving from quarterly to monthly or weekly observations would give the models more rows to learn from. The current dataset has fewer than 30 merged observations.
-- **Try LSTM** — the time series structure of this data makes it a reasonable candidate for sequence modelling. A long short-term memory network could potentially capture the lagged effects of weather on infrastructure that regression models miss.
-- **Line-level data** — regional weather averages hide a lot. A viaduct exposed to coastal winds behaves very differently from a sheltered urban stretch. Station-level or segment-level data would make the predictions much more actionable.
+```
+2026-03-27 11:22:01,215 - INFO - __main__ - merged shape: (45, 19)
+```
 
 ---
 
 ## Running tests
 
 ```bash
-# run everything
-pytest tests/ -v
-
-# just the data tests
-pytest tests/ -v -k "env or delay or merge"
-
-# just the model tests
-pytest tests/ -v -k "model or scaler or feature"
-
-# just check output files exist (run after the scripts)
-pytest tests/ -v -k "output or metrics"
+pytest tests/ -v                          # everything
+pytest tests/ -v -k "env or delay"        # data validation only
+pytest tests/ -v -k "model or scaler"     # model tests only
+pytest tests/ -v -k "output or metrics"   # check output files exist
 ```
 
-The output file tests will skip automatically if the scripts haven't been run yet rather than failing — so you can run the full suite before and after running the scripts without it breaking.
+Output file tests skip gracefully on a fresh clone before scripts have been run.
+
+---
+
+## Future work
+
+- **Richer data** — Network Rail infrastructure fault logs and rolling stock maintenance records would be the single biggest improvement. A formal ORR data request is the route to pursue this.
+- **Finer temporal resolution** — monthly rather than quarterly observations would reduce overfitting risk and give ensemble methods more to learn from.
+- **Hyperparameter tuning** — KNN with `n_neighbors=5` is the current best; a grid search could push performance further.
+- **LSTM networks** — the time series structure makes this a reasonable candidate for sequence modelling to capture lagged weather effects on infrastructure.
+- **Line-level granularity** — regional weather averages hide the difference between an exposed coastal viaduct and a sheltered urban route.
 
 ---
 
 ## Project context
 
-Built as part of the **MSc Data Engineering** programme at **Glasgow Caledonian University**, with findings that support several UK government policy areas — the Williams-Shapps Plan for Rail, the net zero 2050 transport strategy, and the Levelling Up connectivity agenda. Full policy discussion is in the [report](docs/infrastructure_reliability_report_v2.docx).
+Built as part of the **MSc Data Engineering** programme at **Glasgow Caledonian University**. The findings support active UK government policy areas — the Williams-Shapps Plan for Rail, the net zero 2050 transport strategy, and the Levelling Up connectivity agenda. Full policy discussion in the [report](docs/Infrastructure_Reliability_Report.docx).
 
 ---
 
@@ -261,6 +270,6 @@ MIT
 
 ## Author
 
-**Ahmed Adebisi**  
-MSc Data Engineering, Glasgow Caledonian University  
-[LinkedIn](www.linkedin.com/in/ahmed-adebisi-1a1576231) · [GitHub](#)
+**Ahmed Adebisi**
+MSc Data Engineering, Glasgow Caledonian University
+[LinkedIn](https://www.linkedin.com/in/ahmed-adebisi-1a1576231) · [GitHub](https://github.com/Herdaybusy/Infrastructure_Reliability_Analytics)
