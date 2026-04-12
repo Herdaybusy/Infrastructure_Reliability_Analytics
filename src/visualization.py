@@ -30,8 +30,11 @@ env_df['quarter'] = env_df['datetime'].dt.to_period('Q').astype(str)
 
 # merge for any plots that need both datasets together
 merged = pd.merge(env_df, delay_df, on='quarter', how='inner')
-logger.info(f'merged shape: {merged.shape}')
 
+# save the merged dataset in case it's useful for further analysis
+merged_out = os.path.join(outputs_dir, 'merged_data.csv')
+merged.to_csv(merged_out, index=False)
+logger.info(f'merged dataset saved — {merged.shape[0]} rows')
 
 # correlation heatmap
 # wanted to see which weather variables actually relate to cancellations
